@@ -34,37 +34,63 @@
     <link rel="modulepreload" crossorigin href="/assets/vendor-framer-BN7WZHJm.js">
     <link rel="stylesheet" crossorigin href="/assets/index-Z2lYC5xi.css">
     <style>
-      /* Music Mode overlay: hides the typing/practice bar and expands the keyboard to fill the screen */
-      #music-mode-toggle {
-        position: fixed;
-        top: 8px;
-        right: 60px;
-        z-index: 2147483000;
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        background: rgba(20, 20, 28, 0.7);
-        backdrop-filter: blur(6px);
-        color: rgba(255, 255, 255, 0.85);
+      /* Music Mode: hides the typing/practice bar and expands the keyboard to fill the screen */
+
+      /* Docked button: lives inline right next to the Settings gear, matching its exact look */
+      #music-mode-toggle-dock {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.75rem;
         display: flex;
         align-items: center;
         justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(255, 255, 255, 0.65);
         cursor: pointer;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-        transition: background 0.2s, border-color 0.2s, transform 0.15s;
+        transition: all 0.15s;
+        flex-shrink: 0;
       }
-      #music-mode-toggle:hover {
+      #music-mode-toggle-dock:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.18);
+        color: rgba(255, 255, 255, 0.95);
+      }
+      #music-mode-toggle-dock svg {
+        width: 1rem;
+        height: 1rem;
+      }
+      body.music-mode #music-mode-toggle-dock {
         background: rgba(95, 107, 255, 0.25);
         border-color: rgba(95, 107, 255, 0.5);
+        color: #fff;
       }
-      #music-mode-toggle:active {
-        transform: scale(0.94);
+
+      /* Fallback floating button: only shown while Music Mode is on (top bar is hidden then) */
+      #music-mode-toggle-float {
+        display: none;
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        z-index: 2147483000;
+        width: 36px;
+        height: 36px;
+        border-radius: 0.75rem;
+        border: 1px solid rgba(95, 107, 255, 0.5);
+        background: rgba(95, 107, 255, 0.25);
+        color: #fff;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
       }
-      #music-mode-toggle svg {
-        width: 20px;
-        height: 20px;
+      #music-mode-toggle-float svg {
+        width: 18px;
+        height: 18px;
       }
+      body.music-mode #music-mode-toggle-float {
+        display: flex;
+      }
+
       body.music-mode .ka-topbar,
       body.music-mode .ka-typingrow {
         display: none !important;
@@ -83,21 +109,19 @@
       body.music-mode .ka-keyboardwrap > div {
         width: 100%;
       }
-      body.music-mode #music-mode-toggle {
-        background: rgba(95, 107, 255, 0.3);
-        border-color: rgba(95, 107, 255, 0.6);
-      }
     </style>
   </head>
   <body>
     <div id="root"></div>
-    <button id="music-mode-toggle" title="Toggle full-screen keyboard (Music Mode)" aria-label="Toggle full-screen keyboard">
+    <button id="music-mode-toggle-float" title="Exit Music Mode" aria-label="Exit full-screen keyboard">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
     </button>
     <script>
       (function () {
         var MUSIC_MODE_CLASS = "music-mode";
         var tagged = false;
+        var MUSIC_SVG =
+          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>';
 
         function tagElements() {
           if (tagged) return true;
@@ -108,13 +132,26 @@
           var keyboardWrap = keyboardFrame
             ? keyboardFrame.parentElement && keyboardFrame.parentElement.parentElement
             : null;
+          var settingsBtn = document.querySelector('button[title="Open Settings"]');
 
-          if (!topBar || !typingRow || !main || !keyboardWrap) return false;
+          if (!topBar || !typingRow || !main || !keyboardWrap || !settingsBtn) return false;
 
           topBar.classList.add("ka-topbar");
           typingRow.classList.add("ka-typingrow");
           main.classList.add("ka-main");
           keyboardWrap.classList.add("ka-keyboardwrap");
+
+          // Insert the real toggle button right next to Settings, inside the app's own toolbar
+          if (!document.getElementById("music-mode-toggle-dock")) {
+            var dockBtn = document.createElement("button");
+            dockBtn.id = "music-mode-toggle-dock";
+            dockBtn.title = "Toggle full-screen keyboard (Music Mode)";
+            dockBtn.setAttribute("aria-label", "Toggle full-screen keyboard");
+            dockBtn.innerHTML = MUSIC_SVG;
+            dockBtn.addEventListener("click", toggleMusicMode);
+            settingsBtn.parentNode.insertBefore(dockBtn, settingsBtn);
+          }
+
           tagged = true;
           return true;
         }
@@ -168,8 +205,8 @@
         }
 
         document.addEventListener("DOMContentLoaded", function () {
-          var btn = document.getElementById("music-mode-toggle");
-          if (btn) btn.addEventListener("click", toggleMusicMode);
+          var floatBtn = document.getElementById("music-mode-toggle-float");
+          if (floatBtn) floatBtn.addEventListener("click", toggleMusicMode);
 
           // Retry tagging for a bit since the app renders asynchronously
           var attempts = 0;
