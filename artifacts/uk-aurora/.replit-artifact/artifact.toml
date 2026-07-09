@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "UK Aurora Virtual Keyboard"
+version = "1.0.0"
+id = "artifacts/uk-aurora"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25156
+
+[services.development]
+run = "pnpm --filter @workspace/uk-aurora run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/uk-aurora", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/uk-aurora/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25156"
+BASE_PATH = "/"
