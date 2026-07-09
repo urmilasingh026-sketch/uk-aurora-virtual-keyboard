@@ -1,0 +1,31 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - "artifacts/uk-aurora/**"
+      - ".github/workflows/deploy-cloudflare.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assemble static site
+        run: |
+          mkdir -p site
+          cp -r artifacts/uk-aurora/public/. site/
+          cp artifacts/uk-aurora/index.html site/index.html
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy site --project-name=uk-aurora-virtual-keyboard --branch=main
