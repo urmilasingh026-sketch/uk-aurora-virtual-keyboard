@@ -119,6 +119,38 @@
           return true;
         }
 
+        function clickByText(selector, text) {
+          var els = document.querySelectorAll(selector);
+          for (var i = 0; i < els.length; i++) {
+            if (els[i].textContent && els[i].textContent.trim().indexOf(text) !== -1) {
+              els[i].click();
+              return true;
+            }
+          }
+          return false;
+        }
+
+        // Notes played while the typing panel was hidden shouldn't leave the
+        // typing test in a messed-up state (wrong progress/errors) once it's
+        // shown again. We clear it via the app's own "Reset Session" control.
+        function resetTypingSession() {
+          var settingsBtn = document.querySelector('button[title="Open Settings"]');
+          if (!settingsBtn) return;
+          var wasOpen = document.querySelector(".settings-drawer");
+          var alreadyOpen = wasOpen && wasOpen.style.transform && wasOpen.style.transform.indexOf("translateX(0") === 0;
+
+          settingsBtn.click();
+          setTimeout(function () {
+            clickByText("button", "Typing");
+            setTimeout(function () {
+              clickByText("button", "Reset Session");
+              setTimeout(function () {
+                if (!alreadyOpen) settingsBtn.click();
+              }, 120);
+            }, 120);
+          }, 120);
+        }
+
         function setMusicMode(on) {
           document.body.classList.toggle(MUSIC_MODE_CLASS, on);
           try {
@@ -126,6 +158,7 @@
           } catch (e) {}
           // Let the app recompute any size-dependent layout (keyboard auto-scale, etc.)
           window.dispatchEvent(new Event("resize"));
+          if (!on) resetTypingSession();
         }
 
         function toggleMusicMode() {
