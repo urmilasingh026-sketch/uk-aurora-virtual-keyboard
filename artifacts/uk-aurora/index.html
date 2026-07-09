@@ -109,6 +109,17 @@
       body.music-mode .ka-keyboardwrap > div {
         width: 100%;
       }
+
+      /* Forcibly hidden while we drive the settings drawer programmatically to reset
+         typing stats. Keyed off a body class (not the drawer's own class) because
+         React re-renders/replaces the drawer's className on every tab switch,
+         which would otherwise wipe out a class added directly to the drawer. */
+      body.ka-silent-settings .settings-drawer {
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transition: none !important;
+      }
     </style>
   </head>
   <body>
@@ -169,23 +180,74 @@
 
         // Notes played while the typing panel was hidden shouldn't leave the
         // typing test in a messed-up state (wrong progress/errors) once it's
-        // shown again. We clear it via the app's own "Reset Session" control.
+        // shown again. We clear it via the app's own "Reset Session" control,
+        // but do it invisibly so the settings drawer never visibly flashes open.
+        // Poll `check` every 30ms (up to `maxTries` times) until it returns true,
+        // then run `done`. Avoids racing fixed setTimeout delays against React's
+        // actual (variable) render timing.
+        function waitUntil(check, done, maxTries) {
+          var tries = 0;
+          var iv = setInterval(function () {
+            tries++;
+            if (check() || tries >= maxTries) {
+              clearInterval(iv);
+              done();
+            }
+          }, 30);
+        }
+
+        function isDrawerOpen() {
+          var d = document.querySelector(".settings-drawer");
+          return !!(d && (d.style.transform === "" || d.style.transform === "none" || d.style.transform.indexOf("translateX(0") === 0));
+        }
+
         function resetTypingSession() {
           var settingsBtn = document.querySelector('button[title="Open Settings"]');
           if (!settingsBtn) return;
-          var wasOpen = document.querySelector(".settings-drawer");
-          var alreadyOpen = wasOpen && wasOpen.style.transform && wasOpen.style.transform.indexOf("translateX(0") === 0;
+          var alreadyOpen = isDrawerOpen();
+
+          function reveal() {
+            document.body.classList.remove("ka-silent-settings");
+          }
+
+          if (!alreadyOpen) document.body.classList.add("ka-silent-settings");
 
           settingsBtn.click();
-          setTimeout(function () {
-            clickByText("button", "Typing");
-            setTimeout(function () {
-              clickByText("button", "Reset Session");
-              setTimeout(function () {
-                if (!alreadyOpen) settingsBtn.click();
-              }, 120);
-            }, 120);
-          }, 120);
+
+          waitUntil(
+            isDrawerOpen,
+            function () {
+              clickByText("button", "Typing");
+              waitUntil(
+                function () {
+                  var btns = document.querySelectorAll("button");
+                  for (var i = 0; i < btns.length; i++) {
+                    if (btns[i].textContent.indexOf("Reset Session") !== -1) return true;
+                  }
+                  return false;
+                },
+                function () {
+                  clickByText("button", "Reset Session");
+                  setTimeout(function () {
+                    if (alreadyOpen) {
+                      reveal();
+                      return;
+                    }
+                    settingsBtn.click();
+                    waitUntil(
+                      function () {
+                        return !isDrawerOpen();
+                      },
+                      reveal,
+                      20
+                    );
+                  }, 80);
+                },
+                20
+              );
+            },
+            20
+          );
         }
 
         function setMusicMode(on) {
