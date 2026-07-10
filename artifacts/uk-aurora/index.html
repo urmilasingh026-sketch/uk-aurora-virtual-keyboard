@@ -120,6 +120,17 @@
         pointer-events: none !important;
         transition: none !important;
       }
+      /* Programmatically clicking the real Settings button (to silently reset the
+         typing session) focuses it, which shows a focus ring even though the
+         drawer itself is hidden. Suppress any focus/active visuals on it and on
+         anything inside the hidden drawer while the silent reset runs. */
+      body.ka-silent-settings button[title="Open Settings"],
+      body.ka-silent-settings button[title="Open Settings"]:focus,
+      body.ka-silent-settings button[title="Open Settings"]:focus-visible,
+      body.ka-silent-settings .settings-drawer *:focus {
+        outline: none !important;
+        box-shadow: none !important;
+      }
     </style>
   </head>
   <body>
@@ -213,6 +224,7 @@
           if (!alreadyOpen) document.body.classList.add("ka-silent-settings");
 
           settingsBtn.click();
+          settingsBtn.blur();
 
           waitUntil(
             isDrawerOpen,
@@ -233,7 +245,21 @@
                       reveal();
                       return;
                     }
-                    settingsBtn.click();
+                    // The gear button only opens the drawer; it does not toggle it
+                    // closed while already open (that click is intercepted by the
+                    // drawer overlay anyway). Use the drawer's own close (X) button.
+                    var closeBtn = document.querySelector(".settings-drawer button");
+                    var drawerEl = document.querySelector(".settings-drawer");
+                    if (drawerEl) {
+                      var candidates = drawerEl.querySelectorAll("button");
+                      for (var i = 0; i < candidates.length; i++) {
+                        if (candidates[i].querySelector("svg.lucide-x")) {
+                          closeBtn = candidates[i];
+                          break;
+                        }
+                      }
+                    }
+                    if (closeBtn) closeBtn.click();
                     waitUntil(
                       function () {
                         return !isDrawerOpen();
