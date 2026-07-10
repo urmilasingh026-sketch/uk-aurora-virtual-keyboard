@@ -57,8 +57,8 @@
         color: rgba(255, 255, 255, 0.95);
       }
       #music-mode-toggle-dock svg {
-        width: 1rem;
-        height: 1rem;
+        width: 55%;
+        height: 55%;
       }
       body.music-mode #music-mode-toggle-dock {
         background: rgba(95, 107, 255, 0.25);
@@ -145,16 +145,34 @@
         var MUSIC_SVG =
           '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>';
 
+        // On narrower (mobile/tablet) layouts the Settings button loses its
+        // title attribute, so fall back to matching its gear icon.
+        function getSettingsBtn() {
+          var byTitle = document.querySelector('button[title="Open Settings"]');
+          if (byTitle) return byTitle;
+          var icon = document.querySelector("svg.lucide-settings");
+          return icon ? icon.closest("button") : null;
+        }
+
         function tagElements() {
           if (tagged) return true;
           var topBar = document.querySelector(".top-bar");
-          var typingRow = document.querySelector("main > div.flex-1.min-h-0");
           var main = document.querySelector("main");
           var keyboardFrame = document.querySelector(".keyboard-frame");
           var keyboardWrap = keyboardFrame
             ? keyboardFrame.parentElement && keyboardFrame.parentElement.parentElement
             : null;
-          var settingsBtn = document.querySelector('button[title="Open Settings"]');
+          var settingsBtn = getSettingsBtn();
+
+          // The typing/practice row's own class names change between the desktop
+          // and compact (mobile/tablet landscape) layouts, so match it as
+          // "whichever direct child of <main> isn't the keyboard wrapper".
+          var typingRow = document.querySelector("main > div.flex-1.min-h-0");
+          if (!typingRow && main && keyboardWrap) {
+            typingRow = Array.prototype.find.call(main.children, function (c) {
+              return c !== keyboardWrap;
+            });
+          }
 
           if (!topBar || !typingRow || !main || !keyboardWrap || !settingsBtn) return false;
 
@@ -171,6 +189,13 @@
             dockBtn.setAttribute("aria-label", "Toggle full-screen keyboard");
             dockBtn.innerHTML = MUSIC_SVG;
             dockBtn.addEventListener("click", toggleMusicMode);
+            // Match the Settings button's own size (it's smaller on mobile/tablet
+            // layouts than on desktop) so the two sit flush together.
+            var gearRect = settingsBtn.getBoundingClientRect();
+            if (gearRect.width) {
+              dockBtn.style.width = gearRect.width + "px";
+              dockBtn.style.height = gearRect.height + "px";
+            }
             settingsBtn.parentNode.insertBefore(dockBtn, settingsBtn);
           }
 
@@ -213,7 +238,7 @@
         }
 
         function resetTypingSession() {
-          var settingsBtn = document.querySelector('button[title="Open Settings"]');
+          var settingsBtn = getSettingsBtn();
           if (!settingsBtn) return;
           var alreadyOpen = isDrawerOpen();
 
